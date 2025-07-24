@@ -112,11 +112,19 @@ try {
         $ProductosInternalNameArea
     )
 
+$camlQuerySecciones = @"
+<View>
+  <Query>
+    <OrderBy>
+      <FieldRef Name="$SeccionesInternalNameSeccion" Ascending='TRUE' />
+    </OrderBy>
+  </Query>
+</View>
+"@
 
     # Ejecutar query: llamada bloqueante al sitio de SharePoint, hasta que no traiga TODOS los registros, trabajando con paginado de $tamPagina, NO CONTINUA EJECUCIÓN
-    $itemsDeSecciones = Get-PnPListItem -List $SeccionesNombreDeLista `
-        -Fields $SeccionesInternalNameID, $SeccionesInternalNameSeccion, $SeccionesInternalNameArea `
-        -PageSize $tamPagina
+        $itemsDeSecciones = Get-PnPListItem -List $SeccionesNombreDeLista `
+        -Query $camlQuerySecciones -PageSize $tamPagina
 
     # Mostrar resultados
     foreach ($seccion in $itemsDeSecciones) {
@@ -138,7 +146,53 @@ try {
         Write-Host "ID: $id - Titulo: $titulo - Area: $areaNombre (ID: $areaId)" -ForegroundColor DarkGray
     }
 
-$camlQuerySeccion = @"
+Write-Host "ESTA ES LA LOGICA PARA MANTENER REGISTROS DUPLICADOS" -ForegroundColor Red
+
+# Case sensitive (usa StringComparer.Ordinal)
+$contadorPorTitulo = New-Object "System.Collections.Generic.Dictionary[String, Int32]" ([StringComparer]::Ordinal)
+$seccionesDuplicadas = New-Object "System.Collections.Generic.Dictionary[Int32, Object]"
+
+# 1. Contar títulos y guardar duplicados (segunda aparición en adelante)
+foreach ($seccion in $itemsDeSecciones) {
+    $titulo = $seccion[$SeccionesInternalNameSeccion]
+
+    if ($contadorPorTitulo.ContainsKey($titulo)) {
+        $contadorPorTitulo[$titulo] += 1
+        $seccionesDuplicadas[$seccion[$SeccionesInternalNameID]] = $seccion
+    } else {
+        $contadorPorTitulo[$titulo] = 1
+    }
+}
+
+# 2. Agregar la primera aparición de cada título duplicado
+foreach ($titulo in $contadorPorTitulo.Keys) {
+    if ($contadorPorTitulo[$titulo] -gt 1) {
+        $primeraCoincidencia = $itemsDeSecciones | Where-Object { $_[$SeccionesInternalNameSeccion] -eq $titulo } | Select-Object -First 1
+        $seccionesDuplicadas[$primeraCoincidencia[$SeccionesInternalNameID]] = $primeraCoincidencia
+    }
+}
+
+# 3. Mostrar duplicados ordenados por Título
+$seccionesDuplicadas.Values | Sort-Object { $_[$SeccionesInternalNameSeccion] } | ForEach-Object {
+    $id = $_[$SeccionesInternalNameID]
+    $titulo = $_[$SeccionesInternalNameSeccion]
+
+    $area = $_[$SeccionesInternalNameArea]
+    if ($area -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
+        $areaId = $area.LookupId
+        $areaNombre = $area.LookupValue
+    } else {
+        $areaId = ""
+        $areaNombre = $area
+    }
+
+    Write-Host "ID: $id - Titulo: $titulo - Area: $areaNombre (ID: $areaId)" -ForegroundColor Yellow
+}
+
+
+    
+
+$camlQueryProductos = @"
 <View>
   <Query>
     <OrderBy>
@@ -148,12 +202,8 @@ $camlQuerySeccion = @"
 </View>
 "@
 
-    # Obtener productos
-    # $itemsDeProductos = Get-PnPListItem -List $ProductosNombreDeLista `
-    #     -Fields $ProductosInternalNameID, $ProductosInternalNameProducto, $ProductosInternalNameSeccion, $ProductosInternalNameArea `
-    #     -PageSize $tamPagina
     $itemsDeProductos = Get-PnPListItem -List $ProductosNombreDeLista `
-    -Query $camlQuerySeccion -PageSize $tamPagina
+    -Query $camlQueryProductos -PageSize $tamPagina
 
     # Mostrar resultados
     foreach ($producto in $itemsDeProductos) {
@@ -182,6 +232,49 @@ $camlQuerySeccion = @"
 
         Write-Host "ID: $id - Titulo: $titulo - Seccion: $seccionNombre (ID: $seccionId) - Area: $areaNombre (ID: $areaId)" -ForegroundColor DarkGray
     }
+
+Write-Host "ESTA ES LA LOGICA PARA REAPUNTAR IDs LOOKUP FdsSeccion en Productos" -ForegroundColor Red
+Write-Log -Nivel "INFO" -Mensaje "Iniciando lógica para reapuntar IDs de FdsSeccion en Productos"
+
+foreach ($producto in $itemsDeProductos) {
+    $productoId = $producto[$ProductosInternalNameID]
+    $productoTitulo = $producto[$ProductosInternalNameProducto]
+
+    $productoSeccion = $producto.FieldValues[$ProductosInternalNameSeccion]
+    $productoSeccionId = if ($productoSeccion -is [Microsoft.SharePoint.Client.FieldLookupValue]) { $productoSeccion.LookupId } else { "" }
+    $productoSeccionNombre = if ($productoSeccion -is [Microsoft.SharePoint.Client.FieldLookupValue]) { $productoSeccion.LookupValue } else { $productoSeccion }
+
+    $productoArea = $producto.FieldValues[$ProductosInternalNameArea]
+    $productoAreaNombre = if ($productoArea -is [Microsoft.SharePoint.Client.FieldLookupValue]) { $productoArea.LookupValue } else { $productoArea }
+
+    # Buscar en seccionesDuplicadas una coincidencia por Título Y Área (case sensitive)
+    $seccionCorrecta = $seccionesDuplicadas.Values | Where-Object {
+        $_[$SeccionesInternalNameSeccion] -eq $productoSeccionNombre -and (
+            ($_.FieldValues[$SeccionesInternalNameArea]?.LookupValue) -eq $productoAreaNombre
+        )
+    } | Select-Object -First 1
+
+    if ($seccionCorrecta) {
+        $seccionCorrectaId = $seccionCorrecta[$SeccionesInternalNameID]
+
+        if ($productoSeccionId -ne $seccionCorrectaId) {
+            Write-Host "Corrigiendo producto ID: $productoId - '$productoTitulo'" -ForegroundColor Cyan
+            Write-Host " → De Sección ID: $productoSeccionId a ID: $seccionCorrectaId" -ForegroundColor Yellow
+
+            Write-Log -Nivel "INFO" -Mensaje "Corrigiendo Producto ID: $productoId - '$productoTitulo' | Sección: '$productoSeccionNombre' | Área: '$productoAreaNombre' | De ID: $productoSeccionId → A ID: $seccionCorrectaId"
+
+            # Actualizar el lookup con el nuevo ID
+            try {
+                Set-PnPListItem -List $ProductosNombreDeLista -Identity $productoId -Values @{
+                    $ProductosInternalNameSeccion = $seccionCorrectaId
+                }
+            } catch {
+                Write-Host "Error al actualizar producto ID: $productoId" -ForegroundColor Red
+                Write-Log -Nivel "ERROR" -Mensaje "Error al actualizar Producto ID: $productoId - '$productoTitulo' → $_"
+            }
+        }
+    }
+}
 
 
 
