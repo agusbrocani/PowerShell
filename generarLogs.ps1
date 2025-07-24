@@ -20,7 +20,7 @@ try {
     # Simulacion: escribir 10000 registros
     for ($i = 1; $i -le 10000; $i++) {
         $timestamp = Get-Date -Format "dd-MM-yyyy HH:mm:ss.fff"
-        $linea = "[$timestamp] Registro número $i"
+        $linea = "[$timestamp] Registro número $i`n`t"
         $stream.WriteLine($linea)
     }
 
