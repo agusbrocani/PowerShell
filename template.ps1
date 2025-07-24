@@ -72,8 +72,8 @@ try {
     $duracion = $fin - $inicio
     $duracionFormateada = "{0:00}:{1:00}:{2:00}.{3:000}" -f $duracion.Hours, $duracion.Minutes, $duracion.Seconds, $duracion.Milliseconds
 
-    Write-Log -Nivel "INFO" -Mensaje "[H:M:S] Duración total del script: $duracionFormateada"
-    Write-Host "[H:M:S] Duración total del script: $duracionFormateada" -ForegroundColor Green
+    Write-Log -Nivel "INFO" -Mensaje "Duración total del script [hh:mm:ss]: $duracionFormateada"
+    Write-Host "Duración total del script [hh:mm:ss]: $duracionFormateada" -ForegroundColor Green
 }
 catch {
     Write-Host "¡Error! $($_.Exception.Message)" -ForegroundColor Red
