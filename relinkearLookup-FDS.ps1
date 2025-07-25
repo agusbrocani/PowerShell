@@ -49,9 +49,8 @@ function ValidarListaYCampos {
         }
     }
 
-    Write-Host "Validación exitosa para la lista '$NombreDeLista'" -ForegroundColor Green
+    Write-Host "Validacion exitosa para la lista '$NombreDeLista'" -ForegroundColor Green
 }
-
 
 # ==========================================
 # INICIO DE LOGGING Y CONEXION
@@ -76,12 +75,12 @@ try {
     Write-Log -Nivel "INFO" -Mensaje "Conectado exitosamente a $SiteURL"
 
     # ==========================================
-    # ACCION PRINCIPAL (personalizable)
+    # INICIO DE VALIDAR EXISTENCIA DE ESTRUCTURA Y CAMPOS
     # ==========================================
-    Write-Host "Ejecutando acción principal..." -ForegroundColor Cyan
-    Write-Log -Nivel "INFO" -Mensaje "Inicio de acción principal"
+    Write-Host "`nInicio de validaciones de existencia de estructuras y campos..." -ForegroundColor Cyan
+    Write-Log -Nivel "INFO" -Mensaje "Inicio de validacion de existencia de estructura y campos"
 
-    # VARIABLES GEERALES
+    # VARIABLES GENERALES
     $tamPagina = 500
 
     # VARIABLES: Secciones
@@ -97,20 +96,31 @@ try {
     $ProductosInternalNameSeccion = "FdsSeccion"
     $ProductosInternalNameArea = "FdsArea"
 
-    # Validación de existencia: lista y campos Secciones
+    # Validacion de existencia: lista y campos Secciones
     ValidarListaYCampos -NombreDeLista $SeccionesNombreDeLista -NombresInternosDeCampos @(
         $SeccionesInternalNameID,
         $SeccionesInternalNameSeccion,
         $SeccionesInternalNameArea
     )
+    Write-Log -Mensaje "Validaciones exitosas para la lista '$SeccionesNombreDeLista'"
 
-    # Validación de existencia: lista y campos Productos
+    # Validacion de existencia: lista y campos Productos
     ValidarListaYCampos -NombreDeLista $ProductosNombreDeLista -NombresInternosDeCampos @(
         $ProductosInternalNameID,
         $ProductosInternalNameProducto,
         $ProductosInternalNameSeccion,
         $ProductosInternalNameArea
     )
+    Write-Log -Mensaje "Validaciones exitosas para la lista '$ProductosNombreDeLista'"
+    # ==========================================
+    # FIN DE VALIDAR EXISTENCIA DE ESTRUCTURA Y CAMPOS
+    # ==========================================
+
+    # ==========================================
+    # INICIO DE OBTENCION DE REGISTROS EN LISTA SECCION
+    # ==========================================
+    Write-Host "`nObteniendo registros de la lista '$SeccionesNombreDeLista'..." -ForegroundColor Cyan
+    Write-Log -Nivel "INFO" -Mensaje "Obteniendo registros de la lista '$SeccionesNombreDeLista'..."
 
 $camlQuerySecciones = @"
 <View>
@@ -122,7 +132,7 @@ $camlQuerySecciones = @"
 </View>
 "@
 
-    # Ejecutar query: llamada bloqueante al sitio de SharePoint, hasta que no traiga TODOS los registros, trabajando con paginado de $tamPagina, NO CONTINUA EJECUCIÓN
+    # Ejecutar query: llamada bloqueante al sitio de SharePoint, hasta que no traiga TODOS los registros, trabajando con paginado de $tamPagina, NO CONTINUA EJECUCION
         $itemsDeSecciones = Get-PnPListItem -List $SeccionesNombreDeLista `
         -Query $camlQuerySecciones -PageSize $tamPagina
 
@@ -146,52 +156,70 @@ $camlQuerySecciones = @"
         Write-Host "ID: $id - Titulo: $titulo - Area: $areaNombre (ID: $areaId)" -ForegroundColor DarkGray
     }
 
-Write-Host "ESTA ES LA LOGICA PARA MANTENER REGISTROS DUPLICADOS" -ForegroundColor Red
+    Write-Host "Registros de la lista '$SeccionesNombreDeLista' obtenidos con exito" -ForegroundColor Green
+    Write-Log -Mensaje "Registros de la lista '$SeccionesNombreDeLista' obtenidos con exito"
+    # ==========================================
+    # FIN DE OBTENCION DE REGISTROS EN LISTA SECCION
+    # ==========================================
 
-# Case sensitive (usa StringComparer.Ordinal)
-$contadorPorTitulo = New-Object "System.Collections.Generic.Dictionary[String, Int32]" ([StringComparer]::Ordinal)
-$seccionesDuplicadas = New-Object "System.Collections.Generic.Dictionary[Int32, Object]"
+    # ==========================================
+    # INICIO DE OBTENER REGISTROS CON Seccion DUPLICADA EN LA LISTA DE SECCIONES
+    # ==========================================
+    Write-Host "`nObteniendo registros con el valor del campo 'Seccion' duplicado en la lista '$SeccionesNombreDeLista'..." -ForegroundColor Cyan
+    Write-Log -Mensaje "Obteniendo registros con el valor del campo 'Seccion' duplicado en la lista '$SeccionesNombreDeLista'..."
 
-# 1. Contar títulos y guardar duplicados (segunda aparición en adelante)
-foreach ($seccion in $itemsDeSecciones) {
-    $titulo = $seccion[$SeccionesInternalNameSeccion]
+    # Case sensitive (usa StringComparer.Ordinal)
+    $contadorPorTitulo = New-Object "System.Collections.Generic.Dictionary[String, Int32]" ([StringComparer]::Ordinal)
+    $seccionesDuplicadas = New-Object "System.Collections.Generic.Dictionary[Int32, Object]"
 
-    if ($contadorPorTitulo.ContainsKey($titulo)) {
-        $contadorPorTitulo[$titulo] += 1
-        $seccionesDuplicadas[$seccion[$SeccionesInternalNameID]] = $seccion
-    } else {
-        $contadorPorTitulo[$titulo] = 1
-    }
-}
+    # 1. Contar titulos y guardar duplicados (segunda aparicion en adelante)
+    foreach ($seccion in $itemsDeSecciones) {
+        $titulo = $seccion[$SeccionesInternalNameSeccion]
 
-# 2. Agregar la primera aparición de cada título duplicado
-foreach ($titulo in $contadorPorTitulo.Keys) {
-    if ($contadorPorTitulo[$titulo] -gt 1) {
-        $primeraCoincidencia = $itemsDeSecciones | Where-Object { $_[$SeccionesInternalNameSeccion] -eq $titulo } | Select-Object -First 1
-        $seccionesDuplicadas[$primeraCoincidencia[$SeccionesInternalNameID]] = $primeraCoincidencia
-    }
-}
-
-# 3. Mostrar duplicados ordenados por Título
-$seccionesDuplicadas.Values | Sort-Object { $_[$SeccionesInternalNameSeccion] } | ForEach-Object {
-    $id = $_[$SeccionesInternalNameID]
-    $titulo = $_[$SeccionesInternalNameSeccion]
-
-    $area = $_[$SeccionesInternalNameArea]
-    if ($area -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
-        $areaId = $area.LookupId
-        $areaNombre = $area.LookupValue
-    } else {
-        $areaId = ""
-        $areaNombre = $area
+        if ($contadorPorTitulo.ContainsKey($titulo)) {
+            $contadorPorTitulo[$titulo] += 1
+            $seccionesDuplicadas[$seccion[$SeccionesInternalNameID]] = $seccion
+        } else {
+            $contadorPorTitulo[$titulo] = 1
+        }
     }
 
-    Write-Host "ID: $id - Titulo: $titulo - Area: $areaNombre (ID: $areaId)" -ForegroundColor Yellow
-}
+    # 2. Agregar la primera aparicion de cada titulo duplicado
+    foreach ($titulo in $contadorPorTitulo.Keys) {
+        if ($contadorPorTitulo[$titulo] -gt 1) {
+            $primeraCoincidencia = $itemsDeSecciones | Where-Object { $_[$SeccionesInternalNameSeccion] -eq $titulo } | Select-Object -First 1
+            $seccionesDuplicadas[$primeraCoincidencia[$SeccionesInternalNameID]] = $primeraCoincidencia
+        }
+    }
 
+    # 3. Mostrar duplicados ordenados por Titulo
+    $seccionesDuplicadas.Values | Sort-Object { $_[$SeccionesInternalNameSeccion] } | ForEach-Object {
+        $id = $_[$SeccionesInternalNameID]
+        $titulo = $_[$SeccionesInternalNameSeccion]
 
-    
+        $area = $_[$SeccionesInternalNameArea]
+        if ($area -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
+            $areaId = $area.LookupId
+            $areaNombre = $area.LookupValue
+        } else {
+            $areaId = ""
+            $areaNombre = $area
+        }
 
+        Write-Host "ID: $id - Titulo: $titulo - Area: $areaNombre (ID: $areaId)" -ForegroundColor DarkGray
+    }
+
+    Write-Host "Registros con el valor del campo 'Seccion' duplicado en la lista '$SeccionesNombreDeLista' obtenidos con exito" -ForegroundColor Green
+    Write-Log -Mensaje "Registros con el valor del campo 'Seccion' duplicado en la lista '$SeccionesNombreDeLista' obtenidos con exito"
+    # ==========================================
+    # FIN DE OBTENER REGISTROS CON Seccion DUPLICADA EN LA LISTA DE SECCIONES
+    # ==========================================
+
+    # ==========================================
+    # INICIO DE OBTENCION DE REGISTROS EN LISTA PRODUCTOS
+    # ==========================================
+    Write-Host "`nObteniendo registros de la lista '$ProductosNombreDeLista'..." -ForegroundColor Cyan
+    Write-Log -Nivel "INFO" -Mensaje "Obteniendo registros de la lista '$ProductosNombreDeLista'..."
 $camlQueryProductos = @"
 <View>
   <Query>
@@ -233,63 +261,65 @@ $camlQueryProductos = @"
         Write-Host "ID: $id - Titulo: $titulo - Seccion: $seccionNombre (ID: $seccionId) - Area: $areaNombre (ID: $areaId)" -ForegroundColor DarkGray
     }
 
-Write-Host "ESTA ES LA LOGICA PARA REAPUNTAR IDs LOOKUP FdsSeccion en Productos" -ForegroundColor Red
-Write-Log -Nivel "INFO" -Mensaje "Iniciando lógica para reapuntar IDs de FdsSeccion en Productos"
+    Write-Host "Registros de la lista '$ProductosNombreDeLista' obtenidos con exito" -ForegroundColor Green
+    Write-Log -Mensaje "Registros de la lista '$ProductosNombreDeLista' obtenidos con exito"
+    # ==========================================
+    # FIN DE OBTENCION DE REGISTROS EN LISTA SECCION
+    # ==========================================
 
-foreach ($producto in $itemsDeProductos) {
-    $productoId = $producto[$ProductosInternalNameID]
-    $productoTitulo = $producto[$ProductosInternalNameProducto]
+    # ==========================================
+    # INICIO DE LOGICA PARA REAPUNTAR IDs LOOKUP PARA EL CAMPO FdsSeccion EN LA LISTA PRODUCTOS
+    # ==========================================
+    Write-Host "`nIniciando logica para reapuntar IDs Lookup erroneos del campo 'Seccion' en la lista '$ProductosNombreDeLista'..." -ForegroundColor Cyan
+    Write-Log -Nivel "INFO" -Mensaje "Iniciando logica para reapuntar IDs Lookup erroneos del campo 'Seccion' en la lista '$ProductosNombreDeLista'..."
 
-    $productoSeccion = $producto.FieldValues[$ProductosInternalNameSeccion]
-    $productoSeccionId = if ($productoSeccion -is [Microsoft.SharePoint.Client.FieldLookupValue]) { $productoSeccion.LookupId } else { "" }
-    $productoSeccionNombre = if ($productoSeccion -is [Microsoft.SharePoint.Client.FieldLookupValue]) { $productoSeccion.LookupValue } else { $productoSeccion }
+    foreach ($producto in $itemsDeProductos) {
+        $productoId = $producto[$ProductosInternalNameID]
+        $productoTitulo = $producto[$ProductosInternalNameProducto]
 
-    $productoArea = $producto.FieldValues[$ProductosInternalNameArea]
-    $productoAreaNombre = if ($productoArea -is [Microsoft.SharePoint.Client.FieldLookupValue]) { $productoArea.LookupValue } else { $productoArea }
+        $productoSeccion = $producto.FieldValues[$ProductosInternalNameSeccion]
+        $productoSeccionId = if ($productoSeccion -is [Microsoft.SharePoint.Client.FieldLookupValue]) { $productoSeccion.LookupId } else { "" }
+        $productoSeccionNombre = if ($productoSeccion -is [Microsoft.SharePoint.Client.FieldLookupValue]) { $productoSeccion.LookupValue } else { $productoSeccion }
 
-    # Buscar en seccionesDuplicadas una coincidencia por Título Y Área (case sensitive)
-    $seccionCorrecta = $seccionesDuplicadas.Values | Where-Object {
-        $_[$SeccionesInternalNameSeccion] -eq $productoSeccionNombre -and (
-            ($_.FieldValues[$SeccionesInternalNameArea]?.LookupValue) -eq $productoAreaNombre
-        )
-    } | Select-Object -First 1
+        $productoArea = $producto.FieldValues[$ProductosInternalNameArea]
+        $productoAreaNombre = if ($productoArea -is [Microsoft.SharePoint.Client.FieldLookupValue]) { $productoArea.LookupValue } else { $productoArea }
 
-    if ($seccionCorrecta) {
-        $seccionCorrectaId = $seccionCorrecta[$SeccionesInternalNameID]
+        # Buscar en seccionesDuplicadas una coincidencia por Titulo Y Area (case sensitive)
+        $seccionCorrecta = $seccionesDuplicadas.Values | Where-Object {
+            $_[$SeccionesInternalNameSeccion] -eq $productoSeccionNombre -and (
+                ($_.FieldValues[$SeccionesInternalNameArea]?.LookupValue) -eq $productoAreaNombre
+            )
+        } | Select-Object -First 1  # Si llegara a haber mas de 1 match, solo tomo el primero
 
-        if ($productoSeccionId -ne $seccionCorrectaId) {
-            Write-Host "Corrigiendo producto ID: $productoId - '$productoTitulo'" -ForegroundColor Cyan
-            Write-Host " → De Sección ID: $productoSeccionId a ID: $seccionCorrectaId" -ForegroundColor Yellow
+        if ($seccionCorrecta) {
+            $seccionCorrectaId = $seccionCorrecta[$SeccionesInternalNameID]
 
-            Write-Log -Nivel "INFO" -Mensaje "Corrigiendo Producto ID: $productoId - '$productoTitulo' | Sección: '$productoSeccionNombre' | Área: '$productoAreaNombre' | De ID: $productoSeccionId → A ID: $seccionCorrectaId"
+            if ($productoSeccionId -ne $seccionCorrectaId) {
+                Write-Host "Corrigiendo producto ID: $productoId - '$productoTitulo'" -ForegroundColor DarkBlue
+                Write-Host " -> De Seccion ID: $productoSeccionId a ID: $seccionCorrectaId" -ForegroundColor DarkBlue
 
-            # Actualizar el lookup con el nuevo ID
-            try {
-                Set-PnPListItem -List $ProductosNombreDeLista -Identity $productoId -Values @{
-                    $ProductosInternalNameSeccion = $seccionCorrectaId
+                Write-Log -Nivel "INFO" -Mensaje "Corrigiendo ID: $productoId - Producto: '$productoTitulo' | Seccion: '$productoSeccionNombre' | Area: '$productoAreaNombre' | De ID: $productoSeccionId -> A ID: $seccionCorrectaId"
+
+                # Actualizar el lookup con el nuevo ID
+                try {
+                    Set-PnPListItem -List $ProductosNombreDeLista -Identity $productoId -Values @{
+                        $ProductosInternalNameSeccion = $seccionCorrectaId
+                    }
+                } catch {
+                    Write-Host "Error al actualizar producto ID: $productoId" -ForegroundColor Red
+                    Write-Log -Nivel "ERROR" -Mensaje "Error al actualizar ID: $productoId - Producto: '$productoTitulo' -> $_"
                 }
-            } catch {
-                Write-Host "Error al actualizar producto ID: $productoId" -ForegroundColor Red
-                Write-Log -Nivel "ERROR" -Mensaje "Error al actualizar Producto ID: $productoId - '$productoTitulo' → $_"
             }
         }
     }
-}
 
-
-
-
-
-    # LÓGICA DE LA ACCIÓN PRINCIPAL
-    # for ($i = 1; $i -le 5; $i++) {
-    #     $mensaje = "Registro de prueba $i"
-    #     Write-Host "$mensaje" -ForegroundColor DarkGray
-    #     Write-Log -Nivel "INFO" -Mensaje $mensaje
-    # }
-
+    Write-Host "Logica para reapuntar IDs Lookup erroneos del campo 'Seccion' en la lista '$ProductosNombreDeLista' finalizada con exito" -ForegroundColor Green
+    Write-Log -Nivel "INFO" -Mensaje "Logica para reapuntar IDs Lookup erroneos del campo 'Seccion' en la lista '$ProductosNombreDeLista' finalizada con exito"
     # ==========================================
-    # FIN DE ACCIÓN PRINCIPAL
+    # FIN DE LOGICA PARA REAPUNTAR IDs LOOKUP PARA EL CAMPO FdsSeccion EN LA LISTA PRODUCTOS
     # ==========================================
+
+    Write-Host "`nEstado de ejecucion:" -ForegroundColor Cyan
     Write-Host "Script ejecutado satisfactoriamente." -ForegroundColor Green
     Write-Log -Nivel "INFO" -Mensaje "Script ejecutado satisfactoriamente"
 
@@ -297,8 +327,8 @@ foreach ($producto in $itemsDeProductos) {
     $duracion = $fin - $inicio
     $duracionFormateada = "{0:00}:{1:00}:{2:00}.{3:000}" -f $duracion.Hours, $duracion.Minutes, $duracion.Seconds, $duracion.Milliseconds
 
-    Write-Log -Nivel "INFO" -Mensaje "Tiempo total de ejecución del script [hh:mm:ss]: $duracionFormateada"
-    Write-Host "Tiempo total de ejecución del script [hh:mm:ss]: $duracionFormateada" -ForegroundColor Green
+    Write-Log -Nivel "INFO" -Mensaje "Tiempo total de ejecucion del script [hh:mm:ss]: $duracionFormateada"
+    Write-Host "Tiempo total de ejecucion del script [hh:mm:ss]: $duracionFormateada" -ForegroundColor Green
 }
 catch {
     Write-Host "¡Error! $($_.Exception.Message)" -ForegroundColor Red
@@ -306,8 +336,8 @@ catch {
 }
 finally {
     Disconnect-PnPOnline
-    Write-Host "Conexión cerrada." -ForegroundColor Magenta
-    Write-Log -Nivel "INFO" -Mensaje "Conexión cerrada"
+    Write-Host "`nConexion cerrada." -ForegroundColor Magenta
+    Write-Log -Nivel "INFO" -Mensaje "Conexion cerrada"
 
     if ($global:stream) {
         $global:stream.Close()
@@ -317,10 +347,10 @@ finally {
 # Uso apropiado de colores
     # Magenta   -> recursos
     # Cyan      -> acciones
-    # Green     -> acciones completadas con éxito
+    # Green     -> acciones completadas con exito
     # Red       -> errores
     # Yellow    -> warnings
-    # DarkGrey  -> uso común
+    # DarkGrey  -> uso comun
 
 # ESCRIBIR en archivo log:
     # Write-Log -Nivel "ERROR" -Mensaje $mensajeAEscribir
