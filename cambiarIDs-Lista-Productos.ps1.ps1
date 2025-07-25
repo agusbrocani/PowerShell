@@ -22,7 +22,8 @@ function Write-Log {
 
     try {
         $global:stream.WriteLine($linea)
-    } catch {
+    }
+    catch {
         Write-Host "Error al escribir log: $_" -ForegroundColor Red
     }
 }
@@ -37,7 +38,8 @@ function ValidarListaYCampos {
 
     try {
         Get-PnPList -Identity $NombreDeLista -ThrowExceptionIfListNotFound | Out-Null
-    } catch {
+    }
+    catch {
         throw "La lista '$NombreDeLista' no existe en el sitio"
     }
 
@@ -122,7 +124,7 @@ try {
     Write-Host "`nObteniendo registros de la lista '$SeccionesNombreDeLista'..." -ForegroundColor Cyan
     Write-Log -Nivel "INFO" -Mensaje "Obteniendo registros de la lista '$SeccionesNombreDeLista'..."
 
-$camlQuerySecciones = @"
+    $camlQuerySecciones = @"
 <View>
   <Query>
     <OrderBy>
@@ -133,7 +135,7 @@ $camlQuerySecciones = @"
 "@
 
     # Ejecutar query: llamada bloqueante al sitio de SharePoint, hasta que no traiga TODOS los registros, trabajando con paginado de $tamPagina, NO CONTINUA EJECUCION
-        $itemsDeSecciones = Get-PnPListItem -List $SeccionesNombreDeLista `
+    $itemsDeSecciones = Get-PnPListItem -List $SeccionesNombreDeLista `
         -Query $camlQuerySecciones -PageSize $tamPagina
 
     # Mostrar resultados
@@ -148,7 +150,8 @@ $camlQuerySecciones = @"
         if ($area -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
             $areaId = $area.LookupId
             $areaNombre = $area.LookupValue
-        } else {
+        }
+        else {
             $areaId = ""
             $areaNombre = $area
         }
@@ -179,7 +182,8 @@ $camlQuerySecciones = @"
         if ($contadorPorTitulo.ContainsKey($titulo)) {
             $contadorPorTitulo[$titulo] += 1
             $seccionesDuplicadas[$seccion[$SeccionesInternalNameID]] = $seccion
-        } else {
+        }
+        else {
             $contadorPorTitulo[$titulo] = 1
         }
     }
@@ -196,12 +200,13 @@ $camlQuerySecciones = @"
     $seccionesDuplicadas.Values | Sort-Object { $_[$SeccionesInternalNameSeccion] } | ForEach-Object {
         $id = $_[$SeccionesInternalNameID]
         $titulo = $_[$SeccionesInternalNameSeccion]
-
         $area = $_[$SeccionesInternalNameArea]
+     
         if ($area -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
             $areaId = $area.LookupId
             $areaNombre = $area.LookupValue
-        } else {
+        }
+        else {
             $areaId = ""
             $areaNombre = $area
         }
@@ -220,7 +225,7 @@ $camlQuerySecciones = @"
     # ==========================================
     Write-Host "`nObteniendo registros de la lista '$ProductosNombreDeLista'..." -ForegroundColor Cyan
     Write-Log -Nivel "INFO" -Mensaje "Obteniendo registros de la lista '$ProductosNombreDeLista'..."
-$camlQueryProductos = @"
+    $camlQueryProductos = @"
 <View>
   <Query>
     <OrderBy>
@@ -231,7 +236,7 @@ $camlQueryProductos = @"
 "@
 
     $itemsDeProductos = Get-PnPListItem -List $ProductosNombreDeLista `
-    -Query $camlQueryProductos -PageSize $tamPagina
+        -Query $camlQueryProductos -PageSize $tamPagina
 
     # Mostrar resultados
     foreach ($producto in $itemsDeProductos) {
@@ -243,7 +248,8 @@ $camlQueryProductos = @"
         if ($seccion -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
             $seccionId = $seccion.LookupId
             $seccionNombre = $seccion.LookupValue
-        } else {
+        }
+        else {
             $seccionId = ""
             $seccionNombre = $seccion
         }
@@ -253,7 +259,8 @@ $camlQueryProductos = @"
         if ($area -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
             $areaId = $area.LookupId
             $areaNombre = $area.LookupValue
-        } else {
+        }
+        else {
             $areaId = ""
             $areaNombre = $area
         }
@@ -305,7 +312,8 @@ $camlQueryProductos = @"
                     Set-PnPListItem -List $ProductosNombreDeLista -Identity $productoId -Values @{
                         $ProductosInternalNameSeccion = $seccionCorrectaId
                     }
-                } catch {
+                }
+                catch {
                     Write-Host "Error al actualizar producto ID: $productoId" -ForegroundColor Red
                     Write-Log -Nivel "ERROR" -Mensaje "Error al actualizar ID: $productoId - Producto: '$productoTitulo' -> $_"
                 }
@@ -345,14 +353,15 @@ finally {
 }
 
 # Uso apropiado de colores
-    # Magenta   -> recursos
-    # Cyan      -> acciones
-    # Green     -> acciones completadas con exito
-    # Red       -> errores
-    # Yellow    -> warnings
-    # DarkGrey  -> uso comun
+# Magenta   -> recursos
+# Cyan      -> acciones
+# Green     -> acciones completadas con exito
+# Red       -> errores
+# Yellow    -> warnings
+# DarkGrey  -> uso comun
 
 # ESCRIBIR en archivo log:
-    # Write-Log -Nivel "ERROR" -Mensaje $mensajeAEscribir
-    # -Nivel    [OPCIONAL]. Valores posibles: "INFO", "WARNING", "ERROR". Por defecto es "INFO". 
-    # -Mensaje  [OBLIGATORIO]
+# Write-Log -Nivel "ERROR" -Mensaje $mensajeAEscribir
+# -Nivel    [OPCIONAL]. Valores posibles: "INFO", "WARNING", "ERROR". Por defecto es "INFO". 
+# -Mensaje  [OBLIGATORIO]
+ 

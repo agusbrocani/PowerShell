@@ -22,7 +22,8 @@ function Write-Log {
 
     try {
         $global:stream.WriteLine($linea)
-    } catch {
+    }
+    catch {
         Write-Host "Error al escribir log: $_" -ForegroundColor Red
     }
 }
@@ -37,7 +38,8 @@ function validarEstructuraYCampos {
 
     try {
         Get-PnPList -Identity $NombreDeEstructura -ThrowExceptionIfListNotFound | Out-Null
-    } catch {
+    }
+    catch {
         throw "La estructura '$NombreDeEstructura' no existe en el sitio"
     }
 
@@ -92,7 +94,6 @@ try {
     # VARIABLES: Fichas De Seguridad
     $NombreDeBiblioteca = "Fichas De Seguridad"
     $BibliotecaInternalNameID = "ID"
-    $BibliotecaInternalNameNombre = "Title"
     $BibliotecaInternalNameSeccion = "FdsSeccion"
     $BibliotecaInternalNameArea = "FdsArea"
 
@@ -107,7 +108,6 @@ try {
     # Validacion de existencia: biblioteca y campos
     validarEstructuraYCampos -NombreDeEstructura $NombreDeBiblioteca -NombresInternosDeCampos @(
         $BibliotecaInternalNameID,
-        $BibliotecaInternalNameNombre,
         $BibliotecaInternalNameSeccion,
         $BibliotecaInternalNameArea
     )
@@ -122,7 +122,7 @@ try {
     Write-Host "`nObteniendo registros de la lista '$SeccionesNombreDeLista'..." -ForegroundColor Cyan
     Write-Log -Nivel "INFO" -Mensaje "Obteniendo registros de la lista '$SeccionesNombreDeLista'..."
 
-$camlQuerySecciones = @"
+    $camlQuerySecciones = @"
 <View>
   <Query>
     <OrderBy>
@@ -133,7 +133,7 @@ $camlQuerySecciones = @"
 "@
 
     # Ejecutar query: llamada bloqueante al sitio de SharePoint, hasta que no traiga TODOS los registros, trabajando con paginado de $tamPagina, NO CONTINUA EJECUCION
-        $itemsDeSecciones = Get-PnPListItem -List $SeccionesNombreDeLista `
+    $itemsDeSecciones = Get-PnPListItem -List $SeccionesNombreDeLista `
         -Query $camlQuerySecciones -PageSize $tamPagina
 
     # Mostrar resultados
@@ -148,7 +148,8 @@ $camlQuerySecciones = @"
         if ($area -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
             $areaId = $area.LookupId
             $areaNombre = $area.LookupValue
-        } else {
+        }
+        else {
             $areaId = ""
             $areaNombre = $area
         }
@@ -179,7 +180,8 @@ $camlQuerySecciones = @"
         if ($contadorPorTitulo.ContainsKey($titulo)) {
             $contadorPorTitulo[$titulo] += 1
             $seccionesDuplicadas[$seccion[$SeccionesInternalNameID]] = $seccion
-        } else {
+        }
+        else {
             $contadorPorTitulo[$titulo] = 1
         }
     }
@@ -201,7 +203,8 @@ $camlQuerySecciones = @"
         if ($area -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
             $areaId = $area.LookupId
             $areaNombre = $area.LookupValue
-        } else {
+        }
+        else {
             $areaId = ""
             $areaNombre = $area
         }
@@ -232,7 +235,8 @@ $camlQuerySecciones = @"
         if ($seccion -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
             $seccionId = $seccion.LookupId
             $seccionNombre = $seccion.LookupValue
-        } else {
+        }
+        else {
             $seccionId = ""
             $seccionNombre = $seccion
         }
@@ -242,7 +246,8 @@ $camlQuerySecciones = @"
         if ($area -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
             $areaId = $area.LookupId
             $areaNombre = $area.LookupValue
-        } else {
+        }
+        else {
             $areaId = ""
             $areaNombre = $area
         }
@@ -293,7 +298,8 @@ $camlQuerySecciones = @"
                     Set-PnPListItem -List $NombreDeBiblioteca -Identity $bibliotecaId -Values @{
                         $BibliotecaInternalNameSeccion = $seccionCorrectaId
                     }
-                } catch {
+                }
+                catch {
                     Write-Host "Error al actualizar biblioteca ID: $bibliotecaId" -ForegroundColor Red
                     Write-Log -Nivel "ERROR" -Mensaje "Error al actualizar ID: $bibliotecaId"
                 }
@@ -333,14 +339,15 @@ finally {
 }
 
 # Uso apropiado de colores
-    # Magenta   -> recursos
-    # Cyan      -> acciones
-    # Green     -> acciones completadas con exito
-    # Red       -> errores
-    # Yellow    -> warnings
-    # DarkGrey  -> uso comun
+# Magenta   -> recursos
+# Cyan      -> acciones
+# Green     -> acciones completadas con exito
+# Red       -> errores
+# Yellow    -> warnings
+# DarkGrey  -> uso comun
 
 # ESCRIBIR en archivo log:
-    # Write-Log -Nivel "ERROR" -Mensaje $mensajeAEscribir
-    # -Nivel    [OPCIONAL]. Valores posibles: "INFO", "WARNING", "ERROR". Por defecto es "INFO". 
-    # -Mensaje  [OBLIGATORIO]
+# Write-Log -Nivel "ERROR" -Mensaje $mensajeAEscribir
+# -Nivel    [OPCIONAL]. Valores posibles: "INFO", "WARNING", "ERROR". Por defecto es "INFO". 
+# -Mensaje  [OBLIGATORIO]
+  
