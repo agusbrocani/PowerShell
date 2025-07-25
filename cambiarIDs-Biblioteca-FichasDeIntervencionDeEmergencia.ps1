@@ -220,23 +220,12 @@ $camlQuerySecciones = @"
     # ==========================================
     Write-Host "`nObteniendo registros de la biblioteca '$NombreDeBiblioteca'..." -ForegroundColor Cyan
     Write-Log -Nivel "INFO" -Mensaje "Obteniendo registros de la biblioteca '$NombreDeBiblioteca'..."
-$camlQueryProductos = @"
-<View>
-  <Query>
-    <OrderBy>
-      <FieldRef Name="$BibliotecaInternalNameNombre" Ascending='FALSE' />
-    </OrderBy>
-  </Query>
-</View>
-"@
 
-    $itemsDeBiblioteca = Get-PnPListItem -List $NombreDeBiblioteca `
-    -Query $camlQueryProductos -PageSize $tamPagina
+    $itemsDeBiblioteca = Get-PnPListItem -List $NombreDeBiblioteca ` -PageSize $tamPagina
 
     # Mostrar resultados
     foreach ($biblioteca in $itemsDeBiblioteca) {
         $id = $biblioteca[$BibliotecaInternalNameID]
-        $titulo = $biblioteca[$BibliotecaInternalNameNombre]
 
         # Campo Seccion (lookup)
         $seccion = $biblioteca.FieldValues[$BibliotecaInternalNameSeccion]
@@ -258,7 +247,7 @@ $camlQueryProductos = @"
             $areaNombre = $area
         }
 
-        Write-Host "ID: $id - Titulo: $titulo - Seccion: $seccionNombre (ID: $seccionId) - Area: $areaNombre (ID: $areaId)" -ForegroundColor DarkGray
+        Write-Host "ID: $id - Seccion: $seccionNombre (ID: $seccionId) - Area: $areaNombre (ID: $areaId)" -ForegroundColor DarkGray
     }
 
     Write-Host "Registros de la biblioteca '$NombreDeBiblioteca' obtenidos con exito" -ForegroundColor Green
@@ -275,7 +264,6 @@ $camlQueryProductos = @"
 
     foreach ($biblioteca in $itemsDeBiblioteca) {
         $bibliotecaId = $biblioteca[$BibliotecaInternalNameID]
-        $bibliotecaTitulo = $biblioteca[$BibliotecaInternalNameNombre]
 
         $bibliotecaSeccion = $biblioteca.FieldValues[$BibliotecaInternalNameSeccion]
         $bibliotecaSeccionId = if ($bibliotecaSeccion -is [Microsoft.SharePoint.Client.FieldLookupValue]) { $bibliotecaSeccion.LookupId } else { "" }
@@ -295,10 +283,10 @@ $camlQueryProductos = @"
             $seccionCorrectaId = $seccionCorrecta[$SeccionesInternalNameID]
 
             if ($bibliotecaSeccionId -ne $seccionCorrectaId) {
-                Write-Host "Corrigiendo biblioteca ID: $bibliotecaId - '$bibliotecaTitulo'" -ForegroundColor DarkBlue
+                Write-Host "Corrigiendo biblioteca ID: $bibliotecaId" -ForegroundColor DarkBlue
                 Write-Host " -> De Seccion ID: $bibliotecaSeccionId a ID: $seccionCorrectaId" -ForegroundColor DarkBlue
 
-                Write-Log -Nivel "INFO" -Mensaje "Corrigiendo ID: $bibliotecaId - Producto: '$bibliotecaTitulo' | Seccion: '$bibliotecaSeccionNombre' | Area: '$bibliotecaAreaNombre' | De ID: $bibliotecaSeccionId -> A ID: $seccionCorrectaId"
+                Write-Log -Nivel "INFO" -Mensaje "Corrigiendo ID: $bibliotecaId | Seccion: '$bibliotecaSeccionNombre' | Area: '$bibliotecaAreaNombre' | De ID: $bibliotecaSeccionId -> A ID: $seccionCorrectaId"
 
                 # Actualizar el lookup con el nuevo ID
                 try {
@@ -307,7 +295,7 @@ $camlQueryProductos = @"
                     }
                 } catch {
                     Write-Host "Error al actualizar biblioteca ID: $bibliotecaId" -ForegroundColor Red
-                    Write-Log -Nivel "ERROR" -Mensaje "Error al actualizar ID: $bibliotecaId - Producto: '$bibliotecaTitulo' -> $_"
+                    Write-Log -Nivel "ERROR" -Mensaje "Error al actualizar ID: $bibliotecaId"
                 }
             }
         }
