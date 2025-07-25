@@ -2,7 +2,7 @@
 # CONFIGURACION DE LOG
 # ==========================================
 $RutaLog = "C:/Users/PC/Desktop/logs"
-$NombreBase = "NombreRealDelLog"
+$NombreBase = "LISTA_PRODUCTOS"
 $FechaHoraActual = Get-Date -Format "dd-MM-yyyy_HH-mm"
 $NombreLog = "${NombreBase}_${FechaHoraActual}hs.log"
 $RutaCompleta = Join-Path $RutaLog $NombreLog
@@ -38,14 +38,14 @@ function ValidarListaYCampos {
     try {
         Get-PnPList -Identity $NombreDeLista -ThrowExceptionIfListNotFound | Out-Null
     } catch {
-        throw "La lista '$NombreDeLista' no existe en el sitio."
+        throw "La lista '$NombreDeLista' no existe en el sitio"
     }
 
     $camposExistentes = Get-PnPField -List $NombreDeLista | Select-Object -ExpandProperty InternalName
 
     foreach ($campo in $NombresInternosDeCampos) {
         if ($campo -notin $camposExistentes) {
-            throw "El campo '$campo' no existe en la lista '$NombreDeLista'."
+            throw "El campo '$campo' no existe en la lista '$NombreDeLista'"
         }
     }
 
@@ -75,10 +75,10 @@ try {
     Write-Log -Nivel "INFO" -Mensaje "Conectado exitosamente a $SiteURL"
 
     # ==========================================
-    # INICIO DE VALIDAR EXISTENCIA DE ESTRUCTURA Y CAMPOS
+    # INICIO DE VALIDAR EXISTENCIA DE ESTRUCTURAS Y CAMPOS
     # ==========================================
     Write-Host "`nInicio de validaciones de existencia de estructuras y campos..." -ForegroundColor Cyan
-    Write-Log -Nivel "INFO" -Mensaje "Inicio de validacion de existencia de estructura y campos"
+    Write-Log -Nivel "INFO" -Mensaje "Inicio de validaciones de existencia de estructuras y campos..."
 
     # VARIABLES GENERALES
     $tamPagina = 500
@@ -224,7 +224,7 @@ $camlQueryProductos = @"
 <View>
   <Query>
     <OrderBy>
-      <FieldRef Name="$SeccionesInternalNameSeccion" Ascending='FALSE' />
+      <FieldRef Name="$ProductosInternalNameProducto" Ascending='FALSE' />
     </OrderBy>
   </Query>
 </View>
@@ -264,7 +264,7 @@ $camlQueryProductos = @"
     Write-Host "Registros de la lista '$ProductosNombreDeLista' obtenidos con exito" -ForegroundColor Green
     Write-Log -Mensaje "Registros de la lista '$ProductosNombreDeLista' obtenidos con exito"
     # ==========================================
-    # FIN DE OBTENCION DE REGISTROS EN LISTA SECCION
+    # FIN DE OBTENCION DE REGISTROS EN LISTA PRODUCTOS
     # ==========================================
 
     # ==========================================
